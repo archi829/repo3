@@ -4,6 +4,8 @@ from flask_login import LoginManager, login_required, current_user
 
 from routes.auth import auth_bp
 from routes.admin import admin_bp
+from routes.company import company_bp  
+from routes.student import student_bp
 
 login_manager = LoginManager()
 
@@ -40,44 +42,12 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
-
-    STUB = '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
-    </head>
-    <body class="bg-light">
-        <div class="container mt-5 text-center">
-            <h3> {{ title }} Dashboard</h3>
-            <p class="text-muted">Coming in the next milestone!</p>
-            <a href="/auth/logout" class="btn btn-dark mt-3">Logout</a>
-        </div>
-    </body>
-    </html>
-    '''
+    app.register_blueprint(company_bp) 
+    app.register_blueprint(student_bp)
 
     @app.route('/')
     def index():
         return redirect(url_for('auth.login'))
-
-    @app.route('/company/dashboard')
-    @login_required
-    def company_dashboard():
-        if not isinstance(current_user, Company):
-            abort(403)
-        if current_user.is_blacklisted:
-            abort(403)
-        return render_template_string(STUB, title='Company')
-
-    @app.route('/student/dashboard')
-    @login_required
-    def student_dashboard():
-        if not isinstance(current_user, Student):
-            abort(403)
-        if current_user.is_blacklisted:
-            abort(403)
-        return render_template_string(STUB, title='Student')
 
     # ── 403 handler ───────────────────────────────────────────────────────────
     @app.errorhandler(403)

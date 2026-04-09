@@ -40,15 +40,49 @@
             <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
 
           {% elif current_user.__class__.__name__ == 'Company' %}
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('company.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('company.create_drive') }}"><i class="bi bi-plus-circle"></i> Post Drive</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('company.dashboard') }}">
+              <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('company.create_drive') }}">
+              <i class="bi bi-plus-circle"></i> Post Drive
+            </a>
+          </li>
 
           {% elif current_user.__class__.__name__ == 'Student' %}
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('student.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('student.drives') }}"><i class="bi bi-briefcase"></i> Browse Drives</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('student.history') }}"><i class="bi bi-clock-history"></i> My Applications</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('student.profile') }}"><i class="bi bi-person"></i> Profile</a></li>
-          {% endif %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('student.dashboard') }}">
+              <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button"
+              data-bs-toggle="dropdown">
+              <i class="bi bi-briefcase"></i> Drives
+            </a>
+            <ul class="dropdown-menu">
+              <li>
+                <a class="dropdown-item"
+                  href="{{ url_for('student.drives') }}">
+                  <i class="bi bi-search me-2"></i>Browse Drives
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item"
+                  href="{{ url_for('student.history') }}">
+                  <i class="bi bi-clock-history me-2"></i>My Applications
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('student.profile') }}">
+              <i class="bi bi-person"></i> Profile
+            </a>
+          </li>
+  {% endif %}
 
           <li class="nav-item ms-2">
             <a class="btn btn-outline-danger btn-sm" href="{{ url_for('auth.logout') }}">

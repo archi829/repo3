@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Company Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Company Info Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h4 class="fw-bold mb-1">
+            <i class="bi bi-building me-2"></i>{{ company.company_name }}
+          </h4>
+          <p class="text-muted mb-1">{{ company.industry or 'Industry not set' }}</p>
+          <p class="text-muted small mb-0">{{ company.email }}</p>
+          {% if company.website %}
+            <a href="{{ company.website }}" target="_blank" class="small">
+              {{ company.website }}
+            </a>
+          {% endif %}
+        </div>
+        <a href="{{ url_for('company.create_drive') }}"
+           class="btn btn-dark">
+          <i class="bi bi-plus-circle me-1"></i>Post New Drive
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div class="fs-2 fw-bold text-primary">{{ drives|length }}</div>
+        <div class="text-muted small">Total Drives</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div class="fs-2 fw-bold text-success">
+          {{ drives|selectattr('status','eq','Approved')|list|length }}
+        </div>
+        <div class="text-muted small">Active Drives</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div class="fs-2 fw-bold text-warning">
+          {{ drives|selectattr('status','eq','Pending')|list|length }}
+        </div>
+        <div class="text-muted small">Pending Approval</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div class="fs-2 fw-bold text-info">
+          {% set total_apps = namespace(count=0) %}
+          {% for d in drives %}
+            {% set total_apps.count = total_apps.count + d.applications|length %}
+          {% endfor %}
+          {{ total_apps.count }}
+        </div>
+        <div class="text-muted small">Total Applicants</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drives Table -->
+  <div class="card">
+    <div class="card-header bg-white fw-semibold">
+      <i class="bi bi-briefcase me-2"></i>Your Placement Drives
+    </div>
+    <div class="card-body p-0">
+      {% if drives %}
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Job Title</th><th>Deadline</th>
+            <th>Applicants</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in drives %}
+          <tr>
+            <td class="fw-semibold">{{ d.job_title }}</td>
+            <td>
+              {{ d.application_deadline.strftime('%d %b %Y')
+                 if d.application_deadline else '—' }}
+            </td>
+            <td>
+              <a href="{{ url_for('company.drive_applications', drive_id=d.id) }}"
+                 class="badge bg-primary text-decoration-none">
+                {{ d.applications|length }} applicants
+              </a>
+            </td>
+            <td>
+              {% if d.status == 'Approved' %}
+                <span class="badge bg-success">Approved</span>
+              {% elif d.status == 'Pending' %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% elif d.status == 'Closed' %}
+                <span class="badge bg-secondary">Closed</span>
+              {% else %}
+                <span class="badge bg-danger">Rejected</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('company.edit_drive', drive_id=d.id) }}"
+                 class="btn btn-sm btn-outline-secondary">Edit</a>
+
+              {% if d.status == 'Approved' %}
+                <form method="POST"
+                      action="{{ url_for('company.close_drive', drive_id=d.id) }}"
+                      class="d-inline ms-1">
+                  <button class="btn btn-sm btn-warning">Close</button>
+                </form>
+              {% endif %}
+
+              <form method="POST"
+                    action="{{ url_for('company.delete_drive', drive_id=d.id) }}"
+                    class="d-inline ms-1"
+                    onsubmit="return confirm('Delete this drive?')">
+                <button class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p class="text-muted p-3 mb-0">
+          No drives posted yet.
+          <a href="{{ url_for('company.create_drive') }}">Post your first drive →</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
