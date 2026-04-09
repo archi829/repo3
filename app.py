@@ -1,10 +1,10 @@
-from flask import Flask, redirect, url_for, render_template_string, abort
+from flask import Flask, redirect, url_for, render_template_string, abort, flash
 from models import db, Admin, Company, Student
 from flask_login import LoginManager, login_required, current_user
 
 from routes.auth import auth_bp
 from routes.admin import admin_bp
- 
+
 login_manager = LoginManager()
 
 def create_app():
@@ -31,11 +31,15 @@ def create_app():
         elif user_id.startswith('student-'):
             return Student.query.get(int(user_id.split('-')[1]))
         return None
-    
-    
+
+    # ── Reject unauthorized access attempts cleanly ──────────────────────────
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        flash('Please log in to access this page.', 'warning')
+        return redirect(url_for('auth.login'))
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
-
 
     STUB = '''
     <!DOCTYPE html>
@@ -52,15 +56,17 @@ def create_app():
     </body>
     </html>
     '''
- 
+
     @app.route('/')
     def index():
         return redirect(url_for('auth.login'))
- 
+
     @app.route('/company/dashboard')
     @login_required
     def company_dashboard():
         if not isinstance(current_user, Company):
+            abort(403)
+        if current_user.is_blacklisted:
             abort(403)
         return render_template_string(STUB, title='Company')
 
@@ -69,7 +75,23 @@ def create_app():
     def student_dashboard():
         if not isinstance(current_user, Student):
             abort(403)
+        if current_user.is_blacklisted:
+            abort(403)
         return render_template_string(STUB, title='Student')
+
+    # ── 403 handler ───────────────────────────────────────────────────────────
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template_string('''
+        {% extends "base.html" %}
+        {% block content %}
+        <div class="container mt-5 text-center">
+            <h3 class="text-danger">403 — Access Denied</h3>
+            <p class="text-muted">You don't have permission to view this page.</p>
+            <a href="/" class="btn btn-dark">Go Home</a>
+        </div>
+        {% endblock %}
+        '''), 403
 
     return app
 
