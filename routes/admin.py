@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_from_directory, current_app
 from flask_login import login_required, current_user
 from models import db, Admin, Company, Student, PlacementDrive, Application
 from functools import wraps
@@ -35,7 +35,8 @@ def dashboard():
         pending_drives=pending_drives
     )
 
-# 1) Approve/Reject Companies
+
+# ── Approve/Reject Companies ──────────────────────────────────────────────────
 @admin_bp.route('/company/<int:company_id>/approve', methods=['POST'])
 @login_required
 @admin_required
@@ -44,7 +45,7 @@ def approve_company(company_id):
     company.approval_status = 'Approved'
     db.session.commit()
     flash(f'{company.company_name} has been approved.', 'success')
-    return redirect(url_for('admin.dashboard'))
+    return redirect(request.referrer or url_for('admin.dashboard'))
 
 
 @admin_bp.route('/company/<int:company_id>/reject', methods=['POST'])
@@ -55,9 +56,10 @@ def reject_company(company_id):
     company.approval_status = 'Rejected'
     db.session.commit()
     flash(f'{company.company_name} has been rejected.', 'warning')
-    return redirect(url_for('admin.dashboard'))
+    return redirect(request.referrer or url_for('admin.dashboard'))
 
-# 2) Approve/Reject Drives
+
+# ── Approve/Reject Drives ─────────────────────────────────────────────────────
 @admin_bp.route('/drive/<int:drive_id>/approve', methods=['POST'])
 @login_required
 @admin_required
@@ -79,7 +81,8 @@ def reject_drive(drive_id):
     flash(f'Drive "{drive.job_title}" rejected.', 'warning')
     return redirect(request.referrer or url_for('admin.dashboard'))
 
-# 3) student
+
+# ── Students ──────────────────────────────────────────────────────────────────
 @admin_bp.route('/students')
 @login_required
 @admin_required
@@ -99,23 +102,18 @@ def students():
     students = query.order_by(Student.created_at.desc()).all()
     return render_template('admin/students.html', students=students, q=q)
 
-@admin_bp.route('/companies')
+
+@admin_bp.route('/student/<int:student_id>')
 @login_required
 @admin_required
-def companies():
-    q = request.args.get('q', '').strip()
-    query = Company.query
-    if q:
-        like = f'%{q}%'
-        query = query.filter(
-            db.or_(
-                Company.company_name.ilike(like),
-                Company.industry.ilike(like),
-                db.cast(Company.id, db.String).ilike(like),
-            )
-        )
-    companies = query.order_by(Company.created_at.desc()).all()
-    return render_template('admin/companies.html', companies=companies, q=q)
+def student_detail(student_id):
+    student = Student.query.get_or_404(student_id)
+    applications = Application.query.filter_by(
+        student_id=student_id
+    ).order_by(Application.applied_at.desc()).all()
+    return render_template('admin/student_detail.html',
+                           student=student, applications=applications)
+
 
 @admin_bp.route('/student/<int:student_id>/blacklist', methods=['POST'])
 @login_required
@@ -140,6 +138,26 @@ def delete_student(student_id):
     return redirect(url_for('admin.students'))
 
 
+# ── Companies ─────────────────────────────────────────────────────────────────
+@admin_bp.route('/companies')
+@login_required
+@admin_required
+def companies():
+    q = request.args.get('q', '').strip()
+    query = Company.query
+    if q:
+        like = f'%{q}%'
+        query = query.filter(
+            db.or_(
+                Company.company_name.ilike(like),
+                Company.industry.ilike(like),
+                db.cast(Company.id, db.String).ilike(like),
+            )
+        )
+    companies = query.order_by(Company.created_at.desc()).all()
+    return render_template('admin/companies.html', companies=companies, q=q)
+
+
 @admin_bp.route('/company/<int:company_id>/blacklist', methods=['POST'])
 @login_required
 @admin_required
@@ -161,3 +179,37 @@ def delete_company(company_id):
     db.session.commit()
     flash('Company deleted.', 'danger')
     return redirect(url_for('admin.companies'))
+
+
+# ── All Drives (admin view) ───────────────────────────────────────────────────
+@admin_bp.route('/drives')
+@login_required
+@admin_required
+def drives():
+    drives = PlacementDrive.query.order_by(PlacementDrive.created_at.desc()).all()
+    return render_template('admin/drives.html', drives=drives)
+
+
+# ── All Applications (admin view) ─────────────────────────────────────────────
+@admin_bp.route('/applications')
+@login_required
+@admin_required
+def applications():
+    apps = Application.query.order_by(Application.applied_at.desc()).all()
+    return render_template('admin/applications.html', apps=apps)
+
+
+# ── Admin resume download ──────────────────────────────────────────────────────
+@admin_bp.route('/student/<int:student_id>/resume')
+@login_required
+@admin_required
+def download_student_resume(student_id):
+    student = Student.query.get_or_404(student_id)
+    if not student.resume_path:
+        flash('This student has not uploaded a resume.', 'warning')
+        return redirect(request.referrer or url_for('admin.students'))
+    return send_from_directory(
+        current_app.config['UPLOAD_FOLDER'],
+        student.resume_path,
+        as_attachment=True
+    )
