@@ -23,8 +23,13 @@ def dashboard():
     total_companies = Company.query.count()
     total_drives    = PlacementDrive.query.count()
     total_apps      = Application.query.count()
-    pending_companies = Company.query.filter_by(approval_status='Pending').all()
-    pending_drives    = PlacementDrive.query.filter_by(status='Pending').all()
+    
+    # Limit pending lists on dashboard to top 5 to prevent infinite scrolling
+    pending_companies = Company.query.filter_by(approval_status='Pending').order_by(Company.created_at.desc()).limit(5).all()
+    pending_drives    = PlacementDrive.query.filter_by(status='Pending').order_by(PlacementDrive.created_at.desc()).limit(5).all()
+    
+    pending_companies_count = Company.query.filter_by(approval_status='Pending').count()
+    pending_drives_count = PlacementDrive.query.filter_by(status='Pending').count()
 
     return render_template('admin/dashboard.html',
         total_students=total_students,
@@ -32,11 +37,13 @@ def dashboard():
         total_drives=total_drives,
         total_apps=total_apps,
         pending_companies=pending_companies,
-        pending_drives=pending_drives
+        pending_drives=pending_drives,
+        pending_companies_count=pending_companies_count,
+        pending_drives_count=pending_drives_count
     )
 
 
-# ── Approve/Reject Companies ──────────────────────────────────────────────────
+# ── Individual Approve/Reject Companies ───────────────────────────────────────
 @admin_bp.route('/company/<int:company_id>/approve', methods=['POST'])
 @login_required
 @admin_required
@@ -59,7 +66,33 @@ def reject_company(company_id):
     return redirect(request.referrer or url_for('admin.dashboard'))
 
 
-# ── Approve/Reject Drives ─────────────────────────────────────────────────────
+# ── Bulk Approve/Reject Companies ────────────────────────────────────────────
+@admin_bp.route('/company/bulk-status', methods=['POST'])
+@login_required
+@admin_required
+def bulk_company_status():
+    company_ids = request.form.getlist('company_ids')
+    action = request.form.get('bulk_action')
+    
+    if not company_ids:
+        flash('No companies selected.', 'warning')
+        return redirect(request.referrer or url_for('admin.companies'))
+    
+    new_status = 'Approved' if action == 'approve' else 'Rejected'
+    updated = 0
+    
+    for cid in company_ids:
+        company = Company.query.get(int(cid))
+        if company and company.approval_status == 'Pending':
+            company.approval_status = new_status
+            updated += 1
+            
+    db.session.commit()
+    flash(f'{updated} companies marked as {new_status}.', 'success')
+    return redirect(request.referrer or url_for('admin.companies'))
+
+
+# ── Individual Approve/Reject Drives ──────────────────────────────────────────
 @admin_bp.route('/drive/<int:drive_id>/approve', methods=['POST'])
 @login_required
 @admin_required
@@ -80,6 +113,32 @@ def reject_drive(drive_id):
     db.session.commit()
     flash(f'Drive "{drive.job_title}" rejected.', 'warning')
     return redirect(request.referrer or url_for('admin.dashboard'))
+
+
+# ── Bulk Approve/Reject Drives ───────────────────────────────────────────────
+@admin_bp.route('/drive/bulk-status', methods=['POST'])
+@login_required
+@admin_required
+def bulk_drive_status():
+    drive_ids = request.form.getlist('drive_ids')
+    action = request.form.get('bulk_action')
+    
+    if not drive_ids:
+        flash('No drives selected.', 'warning')
+        return redirect(request.referrer or url_for('admin.drives'))
+    
+    new_status = 'Approved' if action == 'approve' else 'Rejected'
+    updated = 0
+    
+    for did in drive_ids:
+        drive = PlacementDrive.query.get(int(did))
+        if drive and drive.status == 'Pending':
+            drive.status = new_status
+            updated += 1
+            
+    db.session.commit()
+    flash(f'{updated} drives marked as {new_status}.', 'success')
+    return redirect(request.referrer or url_for('admin.drives'))
 
 
 # ── Students ──────────────────────────────────────────────────────────────────
@@ -144,7 +203,9 @@ def delete_student(student_id):
 @admin_required
 def companies():
     q = request.args.get('q', '').strip()
+    status = request.args.get('status', '').strip()
     query = Company.query
+    
     if q:
         like = f'%{q}%'
         query = query.filter(
@@ -154,8 +215,11 @@ def companies():
                 db.cast(Company.id, db.String).ilike(like),
             )
         )
+    if status:
+        query = query.filter_by(approval_status=status)
+        
     companies = query.order_by(Company.created_at.desc()).all()
-    return render_template('admin/companies.html', companies=companies, q=q)
+    return render_template('admin/companies.html', companies=companies, q=q, status=status)
 
 
 @admin_bp.route('/company/<int:company_id>/blacklist', methods=['POST'])
@@ -186,8 +250,19 @@ def delete_company(company_id):
 @login_required
 @admin_required
 def drives():
-    drives = PlacementDrive.query.order_by(PlacementDrive.created_at.desc()).all()
-    return render_template('admin/drives.html', drives=drives)
+    status = request.args.get('status', '').strip()
+    company_id = request.args.get('company_id', '').strip()
+    
+    query = PlacementDrive.query
+    if status:
+        query = query.filter_by(status=status)
+    if company_id:
+        query = query.filter_by(company_id=company_id)
+        
+    drives = query.order_by(PlacementDrive.created_at.desc()).all()
+    companies = Company.query.all()
+    
+    return render_template('admin/drives.html', drives=drives, status=status, company_id=company_id, companies=companies)
 
 
 # ── All Applications (admin view) ─────────────────────────────────────────────

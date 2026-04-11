@@ -23,11 +23,24 @@ def company_required(f):
 @login_required
 @company_required
 def dashboard():
-    drives = PlacementDrive.query.filter_by(
+    status_filter = request.args.get('status', '').strip()
+    
+    # Fetch ALL drives for calculating the top statistics correctly
+    all_drives = PlacementDrive.query.filter_by(
         company_id=current_user.id
     ).order_by(PlacementDrive.created_at.desc()).all()
+    
+    # Filter the drives displayed in the table based on the clicked card
+    if status_filter:
+        table_drives = [d for d in all_drives if d.status == status_filter]
+    else:
+        table_drives = all_drives
+
     return render_template('company/dashboard.html',
-                           company=current_user, drives=drives)
+                           company=current_user, 
+                           all_drives=all_drives,
+                           table_drives=table_drives,
+                           status_filter=status_filter)
 
 
 @company_bp.route('/drive/create', methods=['GET', 'POST'])
@@ -123,6 +136,26 @@ def close_drive(drive_id):
     drive.status = 'Closed'
     db.session.commit()
     flash('Drive closed.', 'warning')
+    return redirect(url_for('company.dashboard'))
+
+
+# ── Re-open a closed drive ────────────────────────────────────────────────────
+@company_bp.route('/drive/<int:drive_id>/reopen', methods=['POST'])
+@login_required
+@company_required
+def reopen_drive(drive_id):
+    drive = PlacementDrive.query.get_or_404(drive_id)
+    if drive.company_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('company.dashboard'))
+    
+    if drive.status == 'Closed':
+        drive.status = 'Approved'
+        db.session.commit()
+        flash('Drive re-opened successfully.', 'success')
+    else:
+        flash('Only closed drives can be re-opened.', 'warning')
+        
     return redirect(url_for('company.dashboard'))
 
 
