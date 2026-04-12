@@ -6,6 +6,7 @@ from routes.auth import auth_bp
 from routes.admin import admin_bp
 from routes.company import company_bp  
 from routes.student import student_bp
+from routes.api import api_bp
 
 login_manager = LoginManager()
 
@@ -44,6 +45,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(company_bp) 
     app.register_blueprint(student_bp)
+    app.register_blueprint(api_bp)
 
     @app.route('/')
     def index():
