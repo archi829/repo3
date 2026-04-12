@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_from_directory, current_app, abort
 from flask_login import login_required, current_user
-from models import db, Admin, Company, Student, PlacementDrive, Application, Placement, Notification
+from models import db, Admin, Company, Student, PlacementDrive, Application, Notification
 from functools import wraps
 import os
 from werkzeug.utils import secure_filename
@@ -40,7 +40,6 @@ def dashboard():
         student_id=current_user.id
     ).order_by(Application.applied_at.desc()).all()
 
-    # Load 5 most recent unread notifications for dashboard
     recent_notifs = Notification.query.filter_by(
         user_type='student', 
         user_id=current_user.id, 
@@ -57,7 +56,6 @@ def dashboard():
 @login_required
 @student_required
 def notifications():
-    # Load all notifications for the student
     all_notifs = Notification.query.filter_by(
         user_type='student', 
         user_id=current_user.id
@@ -158,7 +156,6 @@ def history():
         student_id=current_user.id
     ).order_by(Application.applied_at.desc()).all()
 
-    # Reverted to rely purely on app.status, offer_status does not disrupt counts
     status_counts = {
         'Applied':     sum(1 for a in applications if a.status == 'Applied'),
         'Shortlisted': sum(1 for a in applications if a.status == 'Shortlisted'),
@@ -196,7 +193,6 @@ def respond_offer(app_id):
     
     action = request.form.get('action')
     if action == 'accept':
-        # CHANGED: Use offer_status instead of overwriting the company status
         app.offer_status = 'Accepted'
         flash('Congratulations! You have accepted the offer.', 'success')
     elif action == 'reject':

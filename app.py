@@ -34,7 +34,7 @@ def create_app():
             return Student.query.get(int(user_id.split('-')[1]))
         return None
 
-    # ── Reject unauthorized access attempts cleanly ──────────────────────────
+    #Reject unauthorized access attempts cleanly 
     @login_manager.unauthorized_handler
     def unauthorized():
         flash('Please log in to access this page.', 'warning')
@@ -49,7 +49,7 @@ def create_app():
     def index():
         return redirect(url_for('auth.login'))
 
-    # ── 403 handler ───────────────────────────────────────────────────────────
+    # --- 403 handler ---
     @app.errorhandler(403)
     def forbidden(e):
         return render_template_string('''

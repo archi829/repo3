@@ -24,7 +24,6 @@ def dashboard():
     total_drives    = PlacementDrive.query.count()
     total_apps      = Application.query.count()
     
-    # Limit pending lists on dashboard to top 5 to prevent infinite scrolling
     pending_companies = Company.query.filter_by(approval_status='Pending').order_by(Company.created_at.desc()).limit(5).all()
     pending_drives    = PlacementDrive.query.filter_by(status='Pending').order_by(PlacementDrive.created_at.desc()).limit(5).all()
     
@@ -245,7 +244,7 @@ def delete_company(company_id):
     return redirect(url_for('admin.companies'))
 
 
-# ── All Drives (admin view) ───────────────────────────────────────────────────
+#  All Drives (admin view) 
 @admin_bp.route('/drives')
 @login_required
 @admin_required
@@ -265,7 +264,7 @@ def drives():
     return render_template('admin/drives.html', drives=drives, status=status, company_id=company_id, companies=companies)
 
 
-# ── All Applications (admin view) ─────────────────────────────────────────────
+# All Applications (admin view) 
 @admin_bp.route('/applications')
 @login_required
 @admin_required
@@ -274,7 +273,7 @@ def applications():
     return render_template('admin/applications.html', apps=apps)
 
 
-# ── Admin resume download ──────────────────────────────────────────────────────
+# Admin resume download 
 @admin_bp.route('/student/<int:student_id>/resume')
 @login_required
 @admin_required
