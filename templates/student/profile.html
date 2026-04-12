@@ -59,13 +59,16 @@
           <div class="mb-3">
             <label class="form-label fw-semibold">Resume</label>
             {% if student.resume_path %}
-              <div class="mb-2">
-                <i class="bi bi-file-earmark-check text-success me-1"></i>
-                <span class="small text-success">
-                  Current: {{ student.resume_path }}
-                </span>
-              </div>
-            {% endif %}
+            <div class="mb-2 d-flex align-items-center gap-2">
+              <i class="bi bi-file-earmark-check text-success me-1"></i>
+              <span class="small text-success">Current: {{ student.resume_path }}</span>
+              <a href="{{ url_for('student.download_own_resume') }}"
+                target="_blank"
+                class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye me-1"></i>View Resume
+              </a>
+            </div>
+          {% endif %}
             <input type="file" class="form-control"
                    name="resume" accept=".pdf,.doc,.docx">
             <div class="form-text">PDF, DOC or DOCX. Max recommended: 2MB.</div>

@@ -285,5 +285,5 @@ def download_student_resume(student_id):
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
         student.resume_path,
-        as_attachment=True
+        as_attachment=False
     )

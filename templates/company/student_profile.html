@@ -33,9 +33,9 @@
         </div>
         <div>
           {% if student.resume_path %}
-            <a href="{{ url_for('company.download_resume', student_id=student.id) }}"
+            <a href="{{ url_for('company.view_resume', student_id=student.id) }}"
                class="btn btn-primary">
-              <i class="bi bi-download me-1"></i>Download Resume
+              <i class="bi bi-download me-1"></i>View Resume
             </a>
           {% else %}
             <span class="text-muted">No resume uploaded</span>

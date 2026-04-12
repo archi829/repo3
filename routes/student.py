@@ -248,5 +248,5 @@ def download_own_resume():
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
         current_user.resume_path,
-        as_attachment=True
+        as_attachment=False
     )
