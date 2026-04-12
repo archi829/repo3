@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models import db, Company, PlacementDrive, Application, Student, Notification
 from functools import wraps
+import os
 
 company_bp = Blueprint('company', __name__, url_prefix='/company')
 
@@ -296,8 +297,11 @@ def view_resume(student_id):
     if not student.resume_path:
         flash('This student has not uploaded a resume.', 'warning')
         return redirect(request.referrer)
+    
+    filename = os.path.basename(student.resume_path)  # fix doubled path
+    
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
-        student.resume_path,
-        as_attachment=False
+        filename,
+        as_attachment=False  # to open in browser instead of downloading
     )

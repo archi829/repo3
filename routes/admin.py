@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models import db, Admin, Company, Student, PlacementDrive, Application
 from functools import wraps
+import os
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -82,14 +83,13 @@ def bulk_company_status():
     
     for cid in company_ids:
         company = Company.query.get(int(cid))
-        if company and company.approval_status == 'Pending':
+        if company:
             company.approval_status = new_status
             updated += 1
             
     db.session.commit()
     flash(f'{updated} companies marked as {new_status}.', 'success')
     return redirect(request.referrer or url_for('admin.companies'))
-
 
 # ── Individual Approve/Reject Drives ──────────────────────────────────────────
 @admin_bp.route('/drive/<int:drive_id>/approve', methods=['POST'])
@@ -131,7 +131,7 @@ def bulk_drive_status():
     
     for did in drive_ids:
         drive = PlacementDrive.query.get(int(did))
-        if drive and drive.status == 'Pending':
+        if drive:
             drive.status = new_status
             updated += 1
             
@@ -273,7 +273,6 @@ def applications():
     return render_template('admin/applications.html', apps=apps)
 
 
-# Admin resume download 
 @admin_bp.route('/student/<int:student_id>/resume')
 @login_required
 @admin_required
@@ -282,8 +281,11 @@ def download_student_resume(student_id):
     if not student.resume_path:
         flash('This student has not uploaded a resume.', 'warning')
         return redirect(request.referrer or url_for('admin.students'))
+    
+    filename = os.path.basename(student.resume_path)
+    
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
-        student.resume_path,
+        filename,
         as_attachment=False
     )

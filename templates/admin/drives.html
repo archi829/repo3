@@ -56,9 +56,7 @@
               {% for d in drives %}
               <tr>
                 <td>
-                  {% if d.status == 'Pending' %}
                     <input type="checkbox" class="form-check-input row-check" name="drive_ids" value="{{ d.id }}">
-                  {% endif %}
                 </td>
                 <td class="text-muted small">{{ d.id }}</td>
                 <td class="fw-semibold">{{ d.job_title }}</td>

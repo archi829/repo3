@@ -245,8 +245,11 @@ def download_own_resume():
     if not current_user.resume_path:
         flash('You have not uploaded a resume yet.', 'warning')
         return redirect(url_for('student.profile'))
+    
+    filename = os.path.basename(current_user.resume_path)
+    
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
-        current_user.resume_path,
+        filename,
         as_attachment=False
     )

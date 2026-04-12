@@ -28,7 +28,8 @@ with app.app_context():
     companies_data = [
         ("TechNova Solutions", "hr@technova.com", "Software", "Approved", False),
         ("Global Finance Inc", "careers@globalfinance.com", "Finance", "Approved", False),
-        ("Pending Startup", "contact@startup.com", "Software", "Pending", False),
+        ("Pending Startup1", "contact1@startup.com", "Software", "Pending", False),
+        ("Pending Startup2", "contact2@startup.com", "Software", "Pending", False),
         ("Sketchy Corp", "admin@sketchy.com", "Unknown", "Rejected", False),
     ]
 
@@ -47,7 +48,6 @@ with app.app_context():
 
     db.session.commit()
 
-    # ── Students (with resumes) ───────────────────────────
     skills_pool = ["Python", "Java", "C++", "React", "SQL"]
     students = []
 
@@ -68,10 +68,10 @@ with app.app_context():
             password_hash=default_password,
             cgpa=round(random.uniform(6.5, 9.5), 2),
             skills=", ".join(random.sample(skills_pool, 3)),
-            resume_path=f"uploads/resumes/{resume_file}"  # ✅ correct path
+            resume_path=f"uploads/resumes/{resume_file}" 
         )
 
-        db.session.add(student)      # ✅ FIXED INDENTATION
+        db.session.add(student)      
         students.append(student)
 
     db.session.commit()
