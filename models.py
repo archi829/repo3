@@ -9,7 +9,6 @@ db = SQLAlchemy()
 # ─────────────────────────────────────────────
 class Admin(UserMixin, db.Model):
     __tablename__ = 'admin'
-
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(80), unique=True, nullable=False)
     email         = db.Column(db.String(120), unique=True, nullable=False)
@@ -19,13 +18,11 @@ class Admin(UserMixin, db.Model):
     def get_id(self):
         return f"admin-{self.id}"
 
-
 # ─────────────────────────────────────────────
 # COMPANY
 # ─────────────────────────────────────────────
 class Company(UserMixin, db.Model):
     __tablename__ = 'company'
-
     id              = db.Column(db.Integer, primary_key=True)
     company_name    = db.Column(db.String(150), nullable=False)
     email           = db.Column(db.String(120), unique=True, nullable=False)
@@ -34,42 +31,35 @@ class Company(UserMixin, db.Model):
     website         = db.Column(db.String(200))
     industry        = db.Column(db.String(100))
     description     = db.Column(db.Text)
-
-    # Admin controls
-    approval_status = db.Column(db.String(20), default='Pending')   # Pending / Approved / Rejected
+    approval_status = db.Column(db.String(20), default='Pending')   
     is_blacklisted  = db.Column(db.Boolean, default=False)
     created_at      = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relationships
     drives = db.relationship('PlacementDrive', backref='company', lazy=True,cascade='all, delete-orphan')
     placements = db.relationship('Placement', backref='company', lazy=True)
 
     def get_id(self):
         return f"company-{self.id}"
 
-
 # ─────────────────────────────────────────────
 # STUDENT
 # ─────────────────────────────────────────────
 class Student(UserMixin, db.Model):
     __tablename__ = 'student'
-
     id            = db.Column(db.Integer, primary_key=True)
     full_name     = db.Column(db.String(150), nullable=False)
     email         = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     phone         = db.Column(db.String(20))
     cgpa          = db.Column(db.Float)
-    skills        = db.Column(db.Text)  # comma-separated 
+    skills        = db.Column(db.Text)  
     education     = db.Column(db.Text)          
-    resume_path   = db.Column(db.String(300))   # path to uploaded resume file
+    resume_path   = db.Column(db.String(300))   
 
-    # Admin controls
     is_blacklisted = db.Column(db.Boolean, default=False)
     is_active      = db.Column(db.Boolean, default=True)
     created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relationships
     applications = db.relationship('Application', backref='student', lazy=True, cascade='all, delete-orphan')
     placements = db.relationship('Placement', backref='student', lazy=True)
 
@@ -81,16 +71,12 @@ class Student(UserMixin, db.Model):
 # ─────────────────────────────────────────────
 class Notification(db.Model):
     __tablename__ = 'notification'
-
     id          = db.Column(db.Integer, primary_key=True)
-
     user_type   = db.Column(db.String(20), nullable=False)  
     user_id     = db.Column(db.Integer, nullable=False)
-
     message     = db.Column(db.Text, nullable=False)
     is_read     = db.Column(db.Boolean, default=False)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
     __table_args__ = (db.Index('idx_user_lookup', 'user_type', 'user_id'),)
 
 # ─────────────────────────────────────────────
@@ -98,10 +84,8 @@ class Notification(db.Model):
 # ─────────────────────────────────────────────
 class PlacementDrive(db.Model):
     __tablename__ = 'placement_drive'
-
     id                  = db.Column(db.Integer, primary_key=True)
     company_id          = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
-
     job_title           = db.Column(db.String(150), nullable=False)
     job_description     = db.Column(db.Text, nullable=False)
     eligibility_criteria= db.Column(db.Text)
@@ -109,12 +93,9 @@ class PlacementDrive(db.Model):
     salary_range        = db.Column(db.String(100))
     application_deadline= db.Column(db.Date, nullable=False)
     location            = db.Column(db.String(150))
-
-    # Status flow: Pending → Approved → Closed
-    status      = db.Column(db.String(20), default='Pending')  # Pending / Approved / Closed
+    status      = db.Column(db.String(20), default='Pending')  
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relationships
     applications = db.relationship('Application', backref='drive', lazy=True, cascade='all, delete-orphan')
     placements = db.relationship('Placement', backref='drive', lazy=True)
 
@@ -123,16 +104,12 @@ class PlacementDrive(db.Model):
 # ─────────────────────────────────────────────
 class Placement(db.Model):
     __tablename__ = 'placement'
-
     id           = db.Column(db.Integer, primary_key=True)
     student_id   = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     drive_id     = db.Column(db.Integer, db.ForeignKey('placement_drive.id'), nullable=False)
     company_id   = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
-
-    package_offered = db.Column(db.String(100)) # e.g., "12 LPA"
+    package_offered = db.Column(db.String(100)) 
     placed_at       = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    
-    # Optional: Remarks from HR or Admin
     remarks         = db.Column(db.Text)
 
 # ─────────────────────────────────────────────
@@ -140,19 +117,19 @@ class Placement(db.Model):
 # ─────────────────────────────────────────────
 class Application(db.Model):
     __tablename__ = 'application'
-
     id           = db.Column(db.Integer, primary_key=True)
     student_id   = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     drive_id     = db.Column(db.Integer, db.ForeignKey('placement_drive.id'), nullable=False)
 
     applied_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-    # Status flow: Applied → Shortlisted → Selected / Rejected
     status       = db.Column(db.String(20), default='Applied')
+    
+    # NEW: Isolate offer decisions so HR dropdowns don't break
+    offer_status = db.Column(db.String(20), default='Pending') # Pending, Accepted, Declined
 
     cover_letter = db.Column(db.Text)
+    student_notes = db.Column(db.Text, nullable=True)
 
-    # Prevent duplicate applications: one student can apply once per drive
     __table_args__ = (
         db.UniqueConstraint('student_id', 'drive_id', name='unique_student_drive'),
     )

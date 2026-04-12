@@ -9,7 +9,6 @@
        class="btn btn-sm btn-outline-secondary">← Dashboard</a>
   </div>
 
-  <!-- Status summary -->
   {% if applications %}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-2">
@@ -66,6 +65,7 @@
               <th>Applied On</th>
               <th>Status</th>
               <th>Cover Letter</th>
+              <th>My Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -85,6 +85,13 @@
               <td>
                 {% if a.status == 'Selected' %}
                   <span class="badge bg-success">Selected</span>
+                  {% if a.offer_status == 'Accepted' %}
+                    <span class="badge bg-success border border-light mt-1 d-block">Offer Accepted</span>
+                  {% elif a.offer_status == 'Declined' %}
+                    <span class="badge bg-danger mt-1 d-block">Offer Declined</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark mt-1 d-block">Offer Pending</span>
+                  {% endif %}
                 {% elif a.status == 'Rejected' %}
                   <span class="badge bg-danger">Rejected</span>
                 {% elif a.status == 'Shortlisted' %}
@@ -103,7 +110,6 @@
                           data-bs-target="#clModal{{ a.id }}">
                     View
                   </button>
-                  <!-- Cover Letter Modal -->
                   <div class="modal fade" id="clModal{{ a.id }}" tabindex="-1">
                     <div class="modal-dialog">
                       <div class="modal-content">
@@ -120,6 +126,12 @@
                 {% else %}
                   <span class="text-muted small">—</span>
                 {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('student.save_note', app_id=a.id) }}" class="d-flex align-items-center gap-1">
+                  <textarea name="student_notes" class="form-control form-control-sm" rows="1" placeholder="Add a personal note...">{{ a.student_notes or '' }}</textarea>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary" title="Save Note"><i class="bi bi-save"></i></button>
+                </form>
               </td>
             </tr>
             {% endfor %}

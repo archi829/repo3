@@ -20,7 +20,7 @@
 
         <!-- ── STUDENT FORM ── -->
         {% if role == 'student' %}
-        <form method="POST" action="{{ url_for('auth.register_student') }}">
+        <form method="POST" action="{{ url_for('auth.register_student') }}" enctype="multipart/form-data">
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
@@ -64,6 +64,11 @@
                    placeholder="e.g. Python, Flask, SQL, HTML">
             <div class="form-text">Comma separated</div>
           </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Upload Resume (PDF/DOC)</label>
+            <input type="file" class="form-control" name="resume" accept=".pdf,.doc,.docx">
+          </div>
+          
           <button type="submit" class="btn btn-dark w-100 mt-2">
             <i class="bi bi-person-check me-1"></i>Register as Student
           </button>

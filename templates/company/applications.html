@@ -156,6 +156,15 @@
               <td>
                 {% if a.status == 'Selected' %}
                   <span class="badge bg-success">Selected</span>
+                  <div class="mt-1 small fw-bold">
+                    {% if a.offer_status == 'Accepted' %}
+                      <span class="text-success"><i class="bi bi-check-circle"></i> Accepted</span>
+                    {% elif a.offer_status == 'Declined' %}
+                      <span class="text-danger"><i class="bi bi-x-circle"></i> Declined</span>
+                    {% else %}
+                      <span class="text-warning"><i class="bi bi-hourglass-split"></i> Pending</span>
+                    {% endif %}
+                  </div>
                 {% elif a.status == 'Rejected' %}
                   <span class="badge bg-danger">Rejected</span>
                 {% elif a.status == 'Shortlisted' %}

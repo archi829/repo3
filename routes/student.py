@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_from_directory, current_app, abort
 from flask_login import login_required, current_user
-from models import db, Admin, Company, Student, PlacementDrive, Application, Placement
+from models import db, Admin, Company, Student, PlacementDrive, Application, Placement, Notification
 from functools import wraps
 import os
 from werkzeug.utils import secure_filename
@@ -9,10 +9,8 @@ student_bp = Blueprint('student', __name__, url_prefix='/student')
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def student_required(f):
     @wraps(f)
@@ -25,7 +23,6 @@ def student_required(f):
             return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated
-
 
 @student_bp.route('/dashboard')
 @login_required
@@ -43,10 +40,35 @@ def dashboard():
         student_id=current_user.id
     ).order_by(Application.applied_at.desc()).all()
 
+    # Load 5 most recent unread notifications for dashboard
+    recent_notifs = Notification.query.filter_by(
+        user_type='student', 
+        user_id=current_user.id, 
+        is_read=False
+    ).order_by(Notification.created_at.desc()).limit(5).all()
+
     return render_template('student/dashboard.html',
                            student=current_user,
                            available_drives=available_drives,
-                           applications=applications)
+                           applications=applications,
+                           recent_notifs=recent_notifs)
+
+@student_bp.route('/notifications')
+@login_required
+@student_required
+def notifications():
+    # Load all notifications for the student
+    all_notifs = Notification.query.filter_by(
+        user_type='student', 
+        user_id=current_user.id
+    ).order_by(Notification.created_at.desc()).all()
+    
+    # Mark them as read upon viewing the page
+    for n in all_notifs:
+        n.is_read = True
+    db.session.commit()
+    
+    return render_template('student/notifications.html', notifications=all_notifs)
 
 
 @student_bp.route('/drives')
@@ -57,21 +79,23 @@ def drives():
     applied_drive_ids = [a.drive_id for a in current_user.applications]
 
     query = PlacementDrive.query.filter_by(status='Approved')
+    
     if q:
         like = f'%{q}%'
-        query = query.filter(
+        query = query.join(Company).filter(
             db.or_(
                 PlacementDrive.job_title.ilike(like),
                 PlacementDrive.required_skills.ilike(like),
                 PlacementDrive.location.ilike(like),
+                Company.company_name.ilike(like)
             )
         )
+        
     drives = query.order_by(PlacementDrive.created_at.desc()).all()
     return render_template('student/drives.html',
                            drives=drives,
                            applied_drive_ids=applied_drive_ids,
                            q=q)
-
 
 @student_bp.route('/drive/<int:drive_id>')
 @login_required
@@ -91,7 +115,6 @@ def drive_detail(drive_id):
                            drive=drive,
                            already_applied=already_applied)
 
-
 @student_bp.route('/drive/<int:drive_id>/apply', methods=['POST'])
 @login_required
 @student_required
@@ -106,7 +129,6 @@ def apply(drive_id):
         flash('You cannot apply while blacklisted.', 'danger')
         return redirect(url_for('student.drives'))
 
-    # Duplicate check
     existing = Application.query.filter_by(
         student_id=current_user.id,
         drive_id=drive_id
@@ -128,7 +150,6 @@ def apply(drive_id):
     flash(f'Successfully applied for {drive.job_title}!', 'success')
     return redirect(url_for('student.history'))
 
-
 @student_bp.route('/history')
 @login_required
 @student_required
@@ -137,7 +158,7 @@ def history():
         student_id=current_user.id
     ).order_by(Application.applied_at.desc()).all()
 
-    # Status breakdown for summary
+    # Reverted to rely purely on app.status, offer_status does not disrupt counts
     status_counts = {
         'Applied':     sum(1 for a in applications if a.status == 'Applied'),
         'Shortlisted': sum(1 for a in applications if a.status == 'Shortlisted'),
@@ -150,6 +171,40 @@ def history():
                            applications=applications,
                            status_counts=status_counts)
 
+@student_bp.route('/application/<int:app_id>/note', methods=['POST'])
+@login_required
+@student_required
+def save_note(app_id):
+    app = Application.query.get_or_404(app_id)
+    if app.student_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('student.history'))
+    
+    app.student_notes = request.form.get('student_notes', '').strip()
+    db.session.commit()
+    flash('Personal note updated.', 'success')
+    return redirect(url_for('student.history'))
+
+@student_bp.route('/application/<int:app_id>/offer', methods=['POST'])
+@login_required
+@student_required
+def respond_offer(app_id):
+    app = Application.query.get_or_404(app_id)
+    if app.student_id != current_user.id or app.status != 'Selected':
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('student.dashboard'))
+    
+    action = request.form.get('action')
+    if action == 'accept':
+        # CHANGED: Use offer_status instead of overwriting the company status
+        app.offer_status = 'Accepted'
+        flash('Congratulations! You have accepted the offer.', 'success')
+    elif action == 'reject':
+        app.offer_status = 'Declined'
+        flash('You have declined the offer.', 'warning')
+        
+    db.session.commit()
+    return redirect(url_for('student.dashboard'))
 
 @student_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -170,7 +225,6 @@ def profile():
             flash('CGPA must be between 0 and 10.', 'danger')
             return render_template('student/profile.html', student=current_user)
 
-        # Resume upload
         file = request.files.get('resume')
         if file and file.filename:
             if allowed_file(file.filename):
@@ -186,11 +240,8 @@ def profile():
         db.session.commit()
         flash('Profile updated successfully.', 'success')
         return redirect(url_for('student.profile'))
-
     return render_template('student/profile.html', student=current_user)
 
-
-# ── Resume download (student downloads their own resume) ─────────────────────
 @student_bp.route('/resume/download')
 @login_required
 @student_required

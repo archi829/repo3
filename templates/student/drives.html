@@ -10,12 +10,10 @@
   </div>
 
   <form method="GET" class="mb-3 d-flex gap-2">
-    <input type="text" class="form-control" name="q"
-           value="{{ q }}" placeholder="Search by title, skills, or location…">
-    <button class="btn btn-dark px-4">Search</button>
+    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Search by company, job title, or skills..." style="max-width: 400px;">
+    <button type="submit" class="btn btn-dark px-4">Search</button>
     {% if q %}
-      <a href="{{ url_for('student.drives') }}"
-         class="btn btn-outline-secondary">Clear</a>
+      <a href="{{ url_for('student.drives') }}" class="btn btn-outline-secondary">Clear</a>
     {% endif %}
   </form>
 

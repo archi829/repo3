@@ -1,10 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_from_directory, current_app
 from flask_login import login_required, current_user
-from models import db, Company, PlacementDrive, Application, Student
+from models import db, Company, PlacementDrive, Application, Student, Notification
 from functools import wraps
 
 company_bp = Blueprint('company', __name__, url_prefix='/company')
-
 
 def company_required(f):
     @wraps(f)
@@ -18,19 +17,15 @@ def company_required(f):
         return f(*args, **kwargs)
     return decorated
 
-
 @company_bp.route('/dashboard')
 @login_required
 @company_required
 def dashboard():
     status_filter = request.args.get('status', '').strip()
-    
-    # Fetch ALL drives for calculating the top statistics correctly
     all_drives = PlacementDrive.query.filter_by(
         company_id=current_user.id
     ).order_by(PlacementDrive.created_at.desc()).all()
     
-    # Filter the drives displayed in the table based on the clicked card
     if status_filter:
         table_drives = [d for d in all_drives if d.status == status_filter]
     else:
@@ -41,7 +36,6 @@ def dashboard():
                            all_drives=all_drives,
                            table_drives=table_drives,
                            status_filter=status_filter)
-
 
 @company_bp.route('/drive/create', methods=['GET', 'POST'])
 @login_required
@@ -89,9 +83,7 @@ def create_drive():
         db.session.commit()
         flash('Drive posted! Waiting for admin approval.', 'success')
         return redirect(url_for('company.dashboard'))
-
     return render_template('company/create_drive.html')
-
 
 @company_bp.route('/drive/<int:drive_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -121,9 +113,7 @@ def edit_drive(drive_id):
         db.session.commit()
         flash('Drive updated.', 'success')
         return redirect(url_for('company.dashboard'))
-
     return render_template('company/edit_drive.html', drive=drive)
-
 
 @company_bp.route('/drive/<int:drive_id>/close', methods=['POST'])
 @login_required
@@ -138,8 +128,6 @@ def close_drive(drive_id):
     flash('Drive closed.', 'warning')
     return redirect(url_for('company.dashboard'))
 
-
-# ── Re-open a closed drive ────────────────────────────────────────────────────
 @company_bp.route('/drive/<int:drive_id>/reopen', methods=['POST'])
 @login_required
 @company_required
@@ -155,9 +143,7 @@ def reopen_drive(drive_id):
         flash('Drive re-opened successfully.', 'success')
     else:
         flash('Only closed drives can be re-opened.', 'warning')
-        
     return redirect(url_for('company.dashboard'))
-
 
 @company_bp.route('/drive/<int:drive_id>/delete', methods=['POST'])
 @login_required
@@ -172,7 +158,6 @@ def delete_drive(drive_id):
     flash('Drive deleted.', 'danger')
     return redirect(url_for('company.dashboard'))
 
-
 @company_bp.route('/drive/<int:drive_id>/applications')
 @login_required
 @company_required
@@ -182,8 +167,8 @@ def drive_applications(drive_id):
         flash('Access denied.', 'danger')
         return redirect(url_for('company.dashboard'))
 
-    sort = request.args.get('sort', 'date')   # date | cgpa_desc | cgpa_asc
-    tab  = request.args.get('tab', 'all')     # all | Applied | Shortlisted | Interview | Selected | Rejected
+    sort = request.args.get('sort', 'date')
+    tab  = request.args.get('tab', 'all') 
 
     query = Application.query.filter_by(drive_id=drive_id).join(Student)
     if tab != 'all':
@@ -196,7 +181,6 @@ def drive_applications(drive_id):
         query = query.order_by(Application.applied_at.desc())
 
     apps = query.all()
-
     all_apps = Application.query.filter_by(drive_id=drive_id).all()
     counts = {
         'all':         len(all_apps),
@@ -211,8 +195,6 @@ def drive_applications(drive_id):
                            drive=drive, apps=apps,
                            tab=tab, sort=sort, counts=counts)
 
-
-# ── Single status update ──────────────────────────────────────────────────────
 @company_bp.route('/application/<int:app_id>/status', methods=['POST'])
 @login_required
 @company_required
@@ -228,7 +210,16 @@ def update_status(app_id):
         flash('Invalid status.', 'danger')
         return redirect(request.referrer or url_for('company.dashboard'))
 
-    application.status = new_status
+    # Create Notification if status changed
+    if application.status != new_status:
+        application.status = new_status
+        notif = Notification(
+            user_type='student', 
+            user_id=application.student_id, 
+            message=f"Status update: Your application for {application.drive.job_title} at {application.drive.company.company_name} is now '{new_status}'."
+        )
+        db.session.add(notif)
+        
     db.session.commit()
     flash(f'Status updated to {new_status}.', 'success')
 
@@ -237,8 +228,6 @@ def update_status(app_id):
     return redirect(url_for('company.drive_applications',
                             drive_id=application.drive_id, tab=tab, sort=sort))
 
-
-# ── Bulk status update ────────────────────────────────────────────────────────
 @company_bp.route('/drive/<int:drive_id>/bulk-status', methods=['POST'])
 @login_required
 @company_required
@@ -263,8 +252,14 @@ def bulk_update_status(drive_id):
     for aid in app_ids:
         app = Application.query.get(int(aid))
         if app and app.drive.company_id == current_user.id:
-            app.status = new_status
-            updated += 1
+            if app.status != new_status:
+                app.status = new_status
+                db.session.add(Notification(
+                    user_type='student', 
+                    user_id=app.student_id, 
+                    message=f"Status update: Your application for {app.drive.job_title} at {app.drive.company.company_name} is now '{new_status}'."
+                ))
+                updated += 1
     db.session.commit()
     flash(f'{updated} candidate(s) marked as {new_status}.', 'success')
 
@@ -273,8 +268,6 @@ def bulk_update_status(drive_id):
     return redirect(url_for('company.drive_applications',
                             drive_id=drive_id, tab=tab, sort=sort))
 
-
-# ── Student profile (must have applied to our drive) ─────────────────────────
 @company_bp.route('/student/<int:student_id>/profile')
 @login_required
 @company_required
@@ -291,8 +284,6 @@ def view_student_profile(student_id):
     return render_template('company/student_profile.html',
                            student=student, applications=applications)
 
-
-# ── Resume — opens inline in browser new tab (not forced download) ────────────
 @company_bp.route('/student/<int:student_id>/resume')
 @login_required
 @company_required
@@ -308,5 +299,5 @@ def view_resume(student_id):
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
         student.resume_path,
-        as_attachment=False   # inline → PDF opens in browser tab
+        as_attachment=False
     )
